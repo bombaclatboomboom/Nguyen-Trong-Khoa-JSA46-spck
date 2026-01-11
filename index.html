@@ -3,9 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>SHINJUKU SHOWDOWN: FINAL</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    
+
+    <div id="game-container">
+        <!-- Game Canvas (Layer 0) -->
+        <canvas id="gameCanvas"></canvas>
+        <div class="noise-overlay"></div>
+
+        <!-- Boot Sequence (Layer 1000) -->
+        <div id="boot-sequence">
+            <div class="boot-bg-icon sukuna-mark" id="bg-sukuna"></div>
+            <div class="boot-bg-icon gojo-eye" id="bg-gojo"></div>
+            <div class="boot-text" id="boot-t1">CURSES</div>
+            <div class="boot-text" id="boot-t2">SORCERERS</div>
+            <div class="boot-text" id="boot-t3">DEATH</div>
+            <div class="boot-line"></div>
+        </div>
+
+        <!-- Curtain Transition (Layer 500) -->
+        <div id="curtain-layer">
+            <div class="curtain-black" id="c-black"></div>
+            <div class="curtain-text" id="c-text">EMERGE FROM DARKNESS</div>
+            <div class="curtain-line" id="c-line"></div>
+        </div>
+
+        <!-- Character Intro (Layer 100) -->
+        <div id="intro-layer">
+            <div class="vis-head" id="intro-face"></div>
+            <div class="intro-text" id="intro-name"></div>
+        </div>
+
+        <!-- In-Game HUD (Layer 50) -->
+        <div id="ui-layer" style="display:none;">
+            <div class="hud-top">
+                <div class="fighter-hud" id="hud-p1">
+                    <div class="name-tag" id="p1-name">YUJI</div>
+                    <div class="bar-wrap"><div class="bar-fill hp" id="p1-hp"></div></div>
+                    <div class="bar-wrap"><div class="bar-fill ce" id="p1-ce"></div></div>
+                    <div class="bar-wrap"><div class="bar-fill domain-gauge" id="p1-domain"></div></div>
+                    <div class="bar-wrap" style="height:4px;"><div class="bar-fill fatigue" id="p1-fatigue"></div></div>
+                </div>
+                <div class="fighter-hud" id="hud-p2" style="text-align: right;">
+                    <div class="name-tag" id="p2-name">SUKUNA</div>
+                    <div class="bar-wrap"><div class="bar-fill hp" id="p2-hp" style="float:right;"></div></div>
+                    <div class="bar-wrap"><div class="bar-fill ce" id="p2-ce" style="float:right;"></div></div>
+                    <div class="bar-wrap"><div class="bar-fill domain-gauge" id="p2-domain" style="float:right;"></div></div>
+                </div>
+            </div>
+            
+            <div id="alert-banner">DOMAIN EXPANSION</div>
+            <div id="bf-counter">BLACK FLASH x1</div>
+            
+            <!-- NEW: Black Flash Probability UI -->
+            <div id="bf-chance">
+                <span class="zone-text">THE ZONE</span>
+                <span id="bf-percent">5%</span>
+            </div>
+
+            <div class="hud-bottom">
+                <div class="skills-row">
+                    <div class="skill-box" id="sk-u"><span class="skill-key">U</span><span class="skill-name" id="name-u">Skill 1</span><div class="cd-overlay" id="cd-u"></div></div>
+                    <div class="skill-box" id="sk-i"><span class="skill-key">I</span><span class="skill-name" id="name-i">Skill 2</span><div class="cd-overlay" id="cd-i"></div></div>
+                    <div class="skill-box" id="sk-o" style="border-color:gold;"><span class="skill-key">O</span><span class="skill-name" id="name-o">Skill 3</span><div class="cd-overlay" id="cd-o"></div></div>
+                    <div class="skill-box" id="sk-p" style="border-color:#a855f7;"><span class="skill-key">P</span><span class="skill-name" id="name-p">Skill 4</span><div class="cd-overlay" id="cd-p"></div></div>
+                </div>
+                <div style="color:#aaa; font-size: 0.8rem; margin-top: 5px;">[G] DOMAIN EXPANSION (100% Gauge)</div>
+            </div>
+        </div>
+
+        <!-- MAIN MENU (Layer 2000 - Highest Priority) -->
+        <div id="main-menu" class="menu-screen"> 
+            <h1 class="jjk-title">SHINJUKU<br>SHOWDOWN</h1>
+            <div class="menu-line"></div>
+            <button class="btn-start" onclick="UI.toSelect()">ENTER THE CULLING GAME</button>
+            <button class="btn-start" onclick="UI.toggleTutorial()" style="margin-top: 15px; font-size: 1rem; border-color: #888;">GRIMOIRE (CONTROLS)</button>
+        </div>
+
+        <!-- TUTORIAL MODAL (Layer 2100) -->
+        <div id="tutorial-modal" class="menu-screen" style="display:none; background: rgba(0,0,0,0.95); z-index: 2100;">
+            <div class="tut-content">
+                <h2>JUJUTSU GRIMOIRE</h2>
+                <div class="tut-grid">
+                    <div class="tut-col">
+                        <h3>CONTROLS</h3>
+                        <p><b>W A S D</b> - Movement</p>
+                        <p><b>SPACE</b> - Jump</p>
+                        <p><b>J / K</b> - Light / Heavy Combo</p>
+                        <p><b>L</b> - Dodge (Costs CE)</p>
+                        <p><b>C</b> - Charge Cursed Energy</p>
+                        <p><b>G</b> - DOMAIN EXPANSION (Requires 100% Gauge)</p>
+                    </div>
+                    <div class="tut-col">
+                        <h3>CHARACTER MECHANICS</h3>
+                        <p><span style="color:#ff9977">YUJI:</span> <b>Skill 1 (U)</b> is Divergent Fist. Press <b>U</b> again immediately after hit to trigger <b>BLACK FLASH</b>.</p>
+                        <p><span style="color:#3388ff">GOJO:</span> <b>Skill 4 (P)</b> is Infinity Rush (Auto-Combo). Domain Stuns enemies.</p>
+                        <p><span style="color:#ff0000">SUKUNA:</span> <b>Skill 3 (O)</b> is Malevolent Shrine (AoE Slash). High Damage.</p>
+                        <p><span style="color:#55dd55">MEGUMI:</span> <b>Skill 4 (P)</b> Summons Mahoraga (AI Helper).</p>
+                        <h3>BLACK FLASH MECHANIC</h3>
+                        <p><span style="color:#ff9977">THE ZONE:</span> Hitting <b>Skill 1 (U)</b> builds a hidden probability. When "THE ZONE" triggers, time freezes.</p>
+                        <p><span style="color:#fff">THE RING:</span> A white ring will shrink towards a black core.</p>
+                        <p><span style="color:#ff0055">TIMING:</span> Press <b>U</b> exactly when the ring overlaps the core to trigger BLACK FLASH.</p>
+                        <p><b>WARNING:</b> Missing the timing resets your focus to 0%.</p>
+                    </div>
+                </div>
+                <button class="btn-start" onclick="UI.toggleTutorial()">CLOSE</button>
+            </div>
+        </div>
+
+        <!-- CHARACTER SELECT (Layer 2000) -->
+        <div id="char-select" class="menu-screen" style="display:none; justify-content: flex-start; padding-top: 20px;">
+            <div class="cs-header">CHOOSE YOUR SORCERER</div>
+            <div class="vs-stage">
+                <div class="p-card" id="p1-card">
+                    <div class="p-model" id="p1-model"></div>
+                    <div class="p-info">
+                        <h2 id="p1-sel-name">PLAYER 1</h2>
+                        <p id="p1-desc" class="lore-text">Select Character...</p>
+                    </div>
+                </div>
+                <div class="vs-center"><span class="vs-text">VS</span></div>
+                <div class="p-card" id="p2-card">
+                    <div class="p-model" id="p2-model"></div>
+                    <div class="p-info">
+                        <h2 id="p2-sel-name" style="color:#ef4444">OPPONENT</h2>
+                        <p id="p2-desc" class="lore-text">Waiting...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="roster-area"><div class="roster-grid" id="roster-grid"></div></div>
+            <div class="instruction-text" id="select-instruction">PLAYER 1: SELECT</div>
+        </div>
+        
+        <!-- WIN SCREEN (Layer 2000) -->
+        <div id="win-screen" class="menu-screen" style="display:none;">
+            <h1 id="winner-name">YUJI WINS</h1>
+            <button class="btn-start" onclick="location.reload()">REMATCH</button>
+        </div>
+    </div>
+
+    <script type="module" src="./main.js"></script>
 </body>
 </html>
