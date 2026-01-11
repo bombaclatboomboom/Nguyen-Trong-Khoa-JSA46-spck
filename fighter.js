@@ -22,9 +22,12 @@ export class Fighter {
         this.fatigue = 0; this.maxFatigue = 300; this.burnout = 0; this.domainGauge = 0;
         
         // NEW: Black Flash System
-        this.bfChance = 0; // Start at 0% (Must build it up)
+        // NEW: Black Flash System
+        this.bfChance = 0; 
         this.inTheZone = false; 
-        this.qteTimer = 0;     
+        this.qteTimer = 0;
+        this.bfChain = 0;
+        this.bfPose = 0; // 0:None, 1:Right, 2:Left, 3:Kick, 4:Crit 
         // Yuji Specific Logic
         this.bfWindow = 0; 
         this.bfChain = 0; 

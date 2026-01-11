@@ -273,6 +273,7 @@ export const Engine = {
             ctx.lineTo(x+4*s, y-h-5*s); ctx.lineTo(x+8*s, y-h-12*s); ctx.lineTo(x+12*s, y-h-2*s); ctx.lineTo(x+18*s, y-h-5*s); ctx.lineTo(x+15*s, y-h+8*s); ctx.fill();
             ctx.strokeStyle = '#521'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x-3*s, y-h+15*s); ctx.lineTo(x+3*s, y-h+15*s); ctx.stroke(); 
 
+            
             const armAng = f.state==='ATTACK' ? -facing*1.5 : 0;
             ctx.save(); ctx.translate(x, y-h*0.7); 
             
