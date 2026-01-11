@@ -1,93 +1,76 @@
-import { Vec3 } from './utils.js';
-
-// Helper to draw the QTE Ring
-export function drawYujiQTE(ctx, fighter, project) {
-    if(fighter.state !== 'BF_PREP') return;
-    
-    // Position fixed above head
-    const p = project(fighter.pos.add(new Vec3(0, -80, 0))); 
-    
-    // 1. TOTAL FOCUS (Black out the world)
-    ctx.fillStyle = `rgba(0,0,0,0.9)`; 
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    
-    // 2. The Core (Target)
-    const coreSize = 40;
-    ctx.fillStyle = '#fff';
-    ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
-    ctx.beginPath(); ctx.arc(p.x, p.y, coreSize, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // 3. The Timing Ring
-    const ringRadius = fighter.qteTimer * 4; 
-    const inWindow = (fighter.qteTimer > 10 && fighter.qteTimer < 25);
-    
-    ctx.strokeStyle = inWindow ? '#ff0055' : '#888';
-    ctx.lineWidth = inWindow ? 8 : 4;
-    ctx.shadowBlur = inWindow ? 30 : 0; ctx.shadowColor = '#ff0055';
-    
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, Math.max(coreSize, ringRadius), 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // 4. Instructions
-    ctx.fillStyle = '#ff0055';
-    ctx.font = "italic 30px Impact";
-    ctx.textAlign = "center";
-    
-    if(inWindow) {
-        ctx.fillText("PRESS U NOW!", p.x, p.y + 120);
-        ctx.fillStyle = '#fff'; ctx.font = "15px monospace";
-        ctx.fillText("PERFECT SYNC", p.x, p.y + 140);
-    } else if(fighter.qteTimer > 25) {
-        ctx.fillStyle = '#888'; ctx.font = "20px monospace";
-        ctx.fillText("WAIT...", p.x, p.y + 120);
-    }
-    
-    ctx.textAlign = "start";
-}
-
 export function handleYujiSkill(fighter, slot) {
     const Engine = window.Engine;
 
-    // SKILL 1: DIVERGENT FIST -> BLACK FLASH SYSTEM
+    // SKILL 1: BLACK FLASH CHAIN (1 -> 2 -> 3 -> 4)
     if (slot === 1) {
-        // STATE 1: EXECUTE
+        // STATE 1: EXECUTE QTE (Player pressed U)
         if (fighter.state === 'BF_PREP') {
-            if (fighter.qteTimer > 10 && fighter.qteTimer < 25) {
+            
+            // DYNAMIC DIFFICULTY: Window shrinks as chain increases
+            // Chain 0: 15 frames width
+            // Chain 1: 12 frames
+            // Chain 2: 9 frames
+            // Chain 3: 6 frames (Very Hard)
+            const difficulty = fighter.bfChain * 3;
+            const startFrame = 10 + difficulty; 
+            const endFrame = 25 - (difficulty / 2); 
+
+            if (fighter.qteTimer > startFrame && fighter.qteTimer < endFrame) {
                 triggerBlackFlash(fighter); // SUCCESS
-            } else {
-                const reason = fighter.qteTimer >= 25 ? "TOO EARLY" : "TOO LATE";
+            } 
+            else {
+                // FAIL
+                const reason = fighter.qteTimer >= endFrame ? "TOO EARLY" : "TOO LATE";
                 Engine.spawnParticle(fighter.pos, '#888', 'text', reason);
+                
+                // PUNISHMENT: Break Chain
                 fighter.state = 'IDLE'; 
                 fighter.bfChance = 0; 
                 fighter.bfChain = 0; 
+                fighter.bfPose = 0;
                 Engine.screenShake = 5;
             }
             return true;
         }
 
-        // STATE 2: NORMAL ACTIVATION
+        // STATE 2: TRIGGER ATTEMPT
         if (fighter.cds.s1 > 0) return true;
 
+        // Auto-Trigger Zone if inside a Chain (Guaranteed connection)
+        const isChainContinue = fighter.bfChain > 0 && fighter.bfChain < 4;
         const roll = Math.random() * 100;
-        const isBlackFlashOpp = roll < fighter.bfChance;
+        const isBlackFlashOpp = roll < fighter.bfChance || isChainContinue;
 
         if (isBlackFlashOpp) {
+            // ENTER ZONE
             fighter.state = 'BF_PREP';
             fighter.qteTimer = 60; 
             fighter.ce -= 10;
-            Engine.spawnParticle(fighter.pos, '#fff', 'text', 'THE ZONE');
+            
+            // STUN ENEMY IMMEDIATELY so they can't run
+            const t = Engine.fighters.find(f => f !== fighter && f.state !== 'DEAD');
+            if(t && fighter.pos.dist(t.pos) < 300) {
+                t.state = 'STUN';
+                t.vel.x = 0; // Freeze them in place
+            }
+
+            const text = fighter.bfChain > 0 ? `CHAIN ${fighter.bfChain + 1}!` : "THE ZONE";
+            Engine.spawnParticle(fighter.pos, '#fff', 'text', text);
             return true;
         } else {
+            // NORMAL HIT (No Flash)
             fighter.ce -= 20; 
             fighter.cds.s1 = 20; 
             fighter.state = 'ATTACK'; 
+            fighter.bfPose = 0; // Normal Punch
+            
+            // Visuals
             fighter.attack('HEAVY');
             Engine.spawnParticle(fighter.pos, '#0088ff', 'text', 'DIVERGENT FIST');
             Engine.spawnParticle(fighter.pos.add(new Vec3(fighter.facing * 40, -50, 0)), '#0088ff', 'burst');
-            fighter.bfChance = Math.min(90, fighter.bfChance + 5); 
             
+            // Build Chance
+            fighter.bfChance = Math.min(90, fighter.bfChance + 5); 
             const el = document.getElementById('bf-percent');
             if(el) {
                 el.innerText = Math.floor(fighter.bfChance) + "%";
@@ -97,6 +80,7 @@ export function handleYujiSkill(fighter, slot) {
         }
     }
     
+    // ... (Keep Skills 2, 3, 4 unchanged) ...
     // SKILL 2: PIERCING BLOOD
     if (slot === 2) {
         if (fighter.cds.s2 > 0 || fighter.ce < 40) return true;
@@ -132,33 +116,36 @@ export function handleYujiSkill(fighter, slot) {
 function triggerBlackFlash(fighter) {
     const Engine = window.Engine;
     fighter.state = 'ATTACK'; 
-    fighter.bfChain++;
+    fighter.bfChain++; // Increment Chain (1, 2, 3, 4)
     
-    // 1. Initial Tear
+    // SET POSE FOR ANIMATION
+    // 1: Right, 2: Left, 3: Kick, 4: Finisher
+    fighter.bfPose = fighter.bfChain; 
+
+    // Visual Tear
     Engine.spawnParticle(fighter.pos.add(new Vec3(fighter.facing*30, -60, 0)), '#000', 'bf_spatial_rend');
     
-    // 2. Delayed Impact
+    // Delayed Impact
     setTimeout(() => {
         const t = Engine.fighters.find(f => f !== fighter);
-        const hit = t && fighter.pos.dist(t.pos) < 300; 
+        const hit = t && fighter.pos.dist(t.pos) < 350; // Wide cinematic range
         
-        // Screen Inversion
+        // Invert Screen
         const cvs = document.getElementById('gameCanvas');
         if(cvs) {
             cvs.style.filter = 'invert(1) contrast(1.5)'; 
             setTimeout(() => cvs.style.filter = 'none', 100);
         }
-        Engine.screenShake = 60;
+        Engine.screenShake = 60 + (fighter.bfChain * 10);
 
         const impactPos = fighter.pos.add(new Vec3(fighter.facing*40, -50, 0));
         
-        // --- VISUAL ENHANCEMENT: LONG LASTING EFFECTS ---
-        // Spawn particles that last 90 frames (1.5s)
+        // Particles
         Engine.spawnParticle(impactPos, '#000', 'bf_core');
         Engine.spawnParticle(impactPos, '#000', 'bf_impact'); 
         Engine.spawnParticle(impactPos, '#fff', 'bf_light');
 
-        // Loop for Residual Sparks (Lasts 1 second)
+        // Residue
         let residues = 0;
         const resInt = setInterval(() => {
             Engine.spawnParticle(impactPos, '#b91c1c', 'bf_residue');
@@ -167,17 +154,36 @@ function triggerBlackFlash(fighter) {
         }, 100);
 
         if (hit) {
-            let dmg = 150 + (fighter.bfChain * 30); 
-            t.takeDamage(dmg, fighter);
-            t.vel.x = fighter.facing * 40; 
-            t.vel.y = -15;
+            // SCALING DAMAGE
+            // Hit 1: 150, Hit 2: 180, Hit 3: 210, Hit 4: 300 (Finisher)
+            let baseDmg = 120 + (fighter.bfChain * 30);
+            if(fighter.bfChain === 4) baseDmg = 300; 
+
+            t.takeDamage(baseDmg, fighter);
             
-            fighter.domainGauge = Math.min(100, fighter.domainGauge + 30);
-            fighter.bfChance = Math.min(100, fighter.bfChance + 10); 
+            // STUN TARGET (Keep them locked for next hit)
+            t.state = 'STUN';
+            t.cds.global = 60; // 1 second stun
             
-            Engine.spawnParticle(impactPos.add(new Vec3(0,-100,0)), '#b91c1c', 'text', 'BLACK FLASH');
+            // KNOCKBACK (Only on finisher)
+            if(fighter.bfChain === 4) {
+                t.vel.x = fighter.facing * 50; 
+                t.vel.y = -20;
+                Engine.spawnParticle(impactPos.add(new Vec3(0,-100,0)), '#b91c1c', 'text', 'CRITICAL FINISH');
+            } else {
+                t.vel.x = fighter.facing * 5; // Slight push
+                Engine.spawnParticle(impactPos.add(new Vec3(0,-100,0)), '#b91c1c', 'text', 'BLACK FLASH x'+fighter.bfChain);
+            }
+            
+            fighter.domainGauge = Math.min(100, fighter.domainGauge + 20);
         } else {
             Engine.spawnParticle(fighter.pos, '#888', 'text', 'WHIFF');
+        }
+
+        // RESET CHAIN IF MAXED
+        if(fighter.bfChain >= 4) {
+            fighter.bfChain = 0;
+            fighter.bfChance = 0; // Reset probability
         }
 
         const el = document.getElementById('bf-percent');

@@ -137,7 +137,7 @@ export const Engine = {
             this.particles = this.particles.filter(p => p.life > 0);
             return; 
         }
-
+f
         // 2. Yuji "THE ZONE" Logic (Freeze Everything & Focus)
         const p1 = this.fighters.find(f => f.isPlayer && f.name === "Yuji Itadori");
         if(p1 && p1.state === 'BF_PREP') {
@@ -278,9 +278,64 @@ export const Engine = {
             ctx.lineTo(x-18*s, y-h-5*s); ctx.lineTo(x-12*s, y-h-2*s); ctx.lineTo(x-8*s, y-h-12*s); ctx.lineTo(x-4*s, y-h-5*s); ctx.lineTo(x, y-h-15*s);
             ctx.lineTo(x+4*s, y-h-5*s); ctx.lineTo(x+8*s, y-h-12*s); ctx.lineTo(x+12*s, y-h-2*s); ctx.lineTo(x+18*s, y-h-5*s); ctx.lineTo(x+15*s, y-h+8*s); ctx.fill();
             ctx.strokeStyle = '#521'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x-3*s, y-h+15*s); ctx.lineTo(x+3*s, y-h+15*s); ctx.stroke(); 
+            
 
-            const armAng = f.state==='ATTACK' ? -facing*1.5 : 0;
+
+            // --- ANIMATED LIMBS BASED ON BLACK FLASH CHAIN ---
             ctx.save(); ctx.translate(x, y-h*0.7); 
+            
+            if(f.state === 'CHARGING_PB') {
+                // ... (Keep Piercing Blood Pose) ...
+                ctx.fillStyle = '#050505'; ctx.fillRect(-5*s, 10*s, 10*s, 20*s); 
+                ctx.fillStyle = '#ffe0bd'; ctx.fillRect(-8*s, 30*s, 16*s, 8*s); 
+                ctx.shadowBlur = 10; ctx.shadowColor = '#f00'; ctx.fillStyle = '#f00';
+                ctx.beginPath(); ctx.arc(0, 30*s, 5*s + Math.random()*5*s, 0, Math.PI*2); ctx.fill();
+            } 
+            else if (f.state === 'ATTACK' && f.bfPose > 0) {
+                // BLACK FLASH ANIMATIONS
+                ctx.fillStyle = '#050505'; // Sleeve
+                ctx.shadowBlur = 20; ctx.shadowColor = '#000'; // Dark Energy
+
+                // POSE 1 & 4: RIGHT HAND (Straight / Slam)
+                if(f.bfPose === 1 || f.bfPose === 4) {
+                    ctx.rotate(-facing * 1.5); // Arm forward
+                    ctx.fillRect(-10*s, 0, 12*s, 35*s); // Arm
+                    
+                    // Fist Color
+                    ctx.fillStyle = f.bfPose === 4 ? '#fff' : '#000'; // White on Finisher
+                    ctx.shadowColor = f.bfPose === 4 ? '#fff' : '#b91c1c';
+                    
+                    ctx.beginPath(); ctx.arc(-4*s, 35*s, 10*s, 0, Math.PI*2); ctx.fill();
+                }
+                // POSE 2: LEFT HAND (Hook)
+                else if(f.bfPose === 2) {
+                    ctx.rotate(facing * 1.0); // Arm up/hook
+                    ctx.fillRect(-10*s, 0, 12*s, 35*s);
+                    ctx.fillStyle = '#000'; 
+                    ctx.beginPath(); ctx.arc(-4*s, 35*s, 10*s, 0, Math.PI*2); ctx.fill();
+                }
+                // POSE 3: KICK (Leg Visual Override)
+                else if(f.bfPose === 3) {
+                    // Hide arm, draw leg kick
+                    ctx.restore(); // Undo arm translate
+                    ctx.save(); ctx.translate(x, y - h/2); // Hip
+                    
+                    ctx.fillStyle = '#080808';
+                    ctx.rotate(-facing * 1.8); // Kick up
+                    ctx.fillRect(-5*s, 0, 15*s, 45*s); // Leg
+                    ctx.fillStyle = '#b91c1c'; 
+                    ctx.fillRect(-5*s, 45*s, 15*s, 10*s); // Shoe
+                    
+                    // Impact Spark on foot
+                    ctx.shadowBlur = 20; ctx.shadowColor = '#000';
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(2*s, 55*s, 8*s, 0, Math.PI*2); ctx.fill();
+                    
+                    // Dummy restore to match outer restore
+                    ctx.save(); 
+                }
+            }
+
             
             if(f.state === 'CHARGING_PB') {
                 ctx.fillStyle = '#050505'; ctx.fillRect(-5*s, 10*s, 10*s, 20*s); 
